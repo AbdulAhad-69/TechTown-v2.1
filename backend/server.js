@@ -41,6 +41,12 @@ app.get('/api/health', (req, res) => {
 // Auth routes (for registration, login, logout)
 app.use('/api/auth', require('./routes/authRoutes'));
 
+// Product routes (for CRUD operations on products)
+app.use('/api/products', require('./routes/productRoutes'));
+
+// Order routes (for creating and managing orders)
+app.use('/api/orders', require('./routes/orderRoutes'));
+
 // --- SERVER STARTUP ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

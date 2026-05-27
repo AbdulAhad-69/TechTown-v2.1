@@ -75,8 +75,25 @@ const logoutUser = async (req, res) => {
     res.status(200).json({ message: 'Logged out successfully' });
 };
 
+// @desc    Get current logged in user profile
+// @route   GET /api/auth/me
+// @access  Private (Requires Token)
+const getMe = async (req, res) => {
+    // req.user is populated by our 'protect' middleware!
+    const user = {
+        _id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.phone,
+        role: req.user.role
+    };
+    
+    res.status(200).json(user);
+};
+
 module.exports = {
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    getMe
 };
