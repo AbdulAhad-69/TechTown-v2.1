@@ -91,9 +91,73 @@ const getMe = async (req, res) => {
     res.status(200).json(user);
 };
 
+// @desc    Apply to become a seller
+// @route   POST /api/auth/apply-seller
+// @access  Private
+const applySeller = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        
+        if (user.sellerStatus === 'pending') {
+            return res.status(400).json({ message: 'You already have a pending seller request.' });
+        }
+        if (user.role === 'seller' || user.role === 'admin') {
+            return res.status(400).json({ message: 'You are already a seller or admin.' });
+        }
+        
+        user.sellerStatus = 'pending';
+        await user.save();
+        
+        res.status(200).json({ message: 'Seller application submitted successfully!' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Get all pending seller requests
+// @route   GET /api/auth/seller-requests
+// @access  Private/Admin
+const getSellerRequests = async (req, res) => {
+    try {
+        const requests = await User.find({ sellerStatus: 'pending' }).select('-password');
+        res.status(200).json(requests);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Approve or Reject a seller
+// @route   PUT /api/auth/:id/seller-status
+// @access  Private/Admin
+const updateSellerStatus = async (req, res) => {
+    try {
+        const { status } = req.body; // Expects 'approved' or 'rejected'
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.sellerStatus = status;
+        
+        // If approved, instantly upgrade their account role!
+        if (status === 'approved') {
+            user.role = 'seller';
+        }
+
+        const updatedUser = await user.save();
+        res.status(200).json({ message: `Seller request ${status}`, user: updatedUser });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     logoutUser,
-    getMe
+    getMe,
+    applySeller,
+    getSellerRequests,
+    updateSellerStatus
 };

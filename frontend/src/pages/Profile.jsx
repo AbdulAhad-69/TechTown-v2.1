@@ -1,34 +1,41 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import { FaUserCircle, FaChartPie, FaBox, FaCog, FaSignOutAlt, FaTachometerAlt } from 'react-icons/fa'; // Added FaTachometerAlt
+import { FaUserCircle, FaChartPie, FaBox, FaCog, FaSignOutAlt, FaTachometerAlt } from 'react-icons/fa';
 
 const Profile = () => {
     const navigate = useNavigate();
-    const { user, logout, checkAuth } = useAuthStore();
-    
+
+    // Global Stores
+    const { user, logout, checkAuth, isLoading } = useAuthStore();
+    const clearCart = useCartStore(state => state.clearCart);
+
+    // Local State
     const [activeTab, setActiveTab] = useState('overview');
     const [orders, setOrders] = useState([]);
     const [selectedReceipt, setSelectedReceipt] = useState(null);
     const [isUpdating, setIsUpdating] = useState(false);
-    
+
     const [formData, setFormData] = useState({
         name: user?.name || '',
         phone: user?.phone || '',
         address: user?.address || '',
-        password: '' 
+        password: ''
     });
 
+    // SECURITY: Kick to login if not authenticated
     useEffect(() => {
-        if (!user) navigate('/login');
-    }, [user, navigate]);
+        if (!isLoading && !user) navigate('/login');
+    }, [user, isLoading, navigate]);
 
+    // Fetch user's orders
     useEffect(() => {
         const fetchMyOrders = async () => {
             try {
-                const res = await axios.get('/api/orders/myorders'); 
+                const res = await axios.get('/api/orders/myorders');
                 const sortedOrders = res.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 setOrders(sortedOrders);
             } catch (error) {
@@ -48,8 +55,8 @@ const Profile = () => {
         try {
             await axios.put('/api/users/profile', formData);
             toast.success("Profile updated successfully!");
-            setFormData({ ...formData, password: '' }); 
-            checkAuth(); 
+            setFormData({ ...formData, password: '' });
+            checkAuth();
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to update profile");
         } finally {
@@ -58,13 +65,24 @@ const Profile = () => {
     };
 
     const handleLogout = async () => {
+        clearCart();
         await logout();
-        navigate('/logged-out'); 
+        navigate('/logged-out');
     };
 
+    const handleApplySeller = async () => {
+        try {
+            await axios.post('/api/auth/apply-seller');
+            toast.success("Application submitted successfully!");
+            checkAuth(); // Refreshes the user data to show "Pending" status
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to apply");
+        }
+    };
+
+    if (isLoading) return <div style={{ textAlign: 'center', marginTop: '100px', fontSize: '18px', color: '#555' }}>Loading profile...</div>;
     if (!user) return null;
 
-    // FIX 2: Only calculate Total Spent if the order is actually Delivered
     const totalSpent = orders
         .filter(order => order.status === 'Delivered')
         .reduce((sum, order) => sum + (order.total_amount || 0), 0);
@@ -74,7 +92,7 @@ const Profile = () => {
     return (
         <section className="mt-60 mb-80" style={{ maxWidth: '1100px', margin: '60px auto', padding: '0 20px' }}>
             <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                
+
                 {/* LEFT SIDEBAR */}
                 <div style={{ flex: '1 1 250px', background: '#fff', borderRadius: '8px', border: '1px solid #eee', overflow: 'hidden' }}>
                     <div style={{ padding: '30px 20px', textAlign: 'center', borderBottom: '1px solid #eee' }}>
@@ -82,24 +100,23 @@ const Profile = () => {
                         <h4 style={{ margin: 0, color: '#333', fontSize: '18px' }}>{user.name}</h4>
                         <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#777' }}>{user.email}</p>
                     </div>
-                    
-                    {/* FIX 5: Removed margin on list and tabs to fix the gaps */}
+
                     <ul style={{ listStyle: 'none', padding: '0', margin: 0 }}>
-                        <li 
+                        <li
                             className="sidebar-tab"
                             onClick={() => { setActiveTab('overview'); setSelectedReceipt(null); }}
                             style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', background: activeTab === 'overview' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'overview' ? '#fff' : '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
                         >
                             <FaChartPie style={{ pointerEvents: 'none' }} /> Overview
                         </li>
-                        <li 
+                        <li
                             className="sidebar-tab"
                             onClick={() => { setActiveTab('orders'); setSelectedReceipt(null); }}
                             style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'orders' ? 'bold' : 'normal', background: activeTab === 'orders' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'orders' ? '#fff' : '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
                         >
                             <FaBox style={{ pointerEvents: 'none' }} /> My Orders
                         </li>
-                        <li 
+                        <li
                             className="sidebar-tab"
                             onClick={() => { setActiveTab('settings'); setSelectedReceipt(null); }}
                             style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'settings' ? 'bold' : 'normal', background: activeTab === 'settings' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'settings' ? '#fff' : '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
@@ -107,9 +124,8 @@ const Profile = () => {
                             <FaCog style={{ pointerEvents: 'none' }} /> Settings
                         </li>
 
-                        {/* FIX 4: Admin/Seller Dashboard link moved here, dynamically named */}
                         {(user.role === 'admin' || user.role === 'seller') && (
-                            <li 
+                            <li
                                 className="sidebar-tab"
                                 onClick={() => navigate('/dashboard')}
                                 style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', color: '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
@@ -118,7 +134,7 @@ const Profile = () => {
                             </li>
                         )}
 
-                        <li 
+                        <li
                             className="sidebar-tab-logout"
                             onClick={handleLogout}
                             style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', color: '#ff4d4f', transition: 'all 0.2s' }}
@@ -130,25 +146,30 @@ const Profile = () => {
 
                 {/* RIGHT CONTENT AREA */}
                 <div style={{ flex: '1 1 700px', background: '#fff', borderRadius: '8px', border: '1px solid #eee', padding: '40px', minHeight: '500px' }}>
-                    
+
                     {/* --- TAB: OVERVIEW --- */}
                     {activeTab === 'overview' && (
                         <div>
                             <h3 style={{ marginBottom: '25px', color: '#333' }}>Overview</h3>
-                            
-                            <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: '150px', background: '#fcfcfc', padding: '30px', borderRadius: '8px', textAlign: 'center', border: '1px solid #eee' }}>
-                                    <p style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 10px 0', color: 'var(--primary-orange, #f57224)' }}>{orders.length}</p>
-                                    <p style={{ color: '#555', margin: 0, fontSize: '14px' }}>Total Orders</p>
+
+                            <div style={{ display: 'flex', gap: '20px', marginBottom: '40px' }}>
+                                <div style={{ flex: 1, background: '#fff', padding: '30px 20px', borderRadius: '10px', textAlign: 'center', border: '1px solid #eaeaea', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                                    <p style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 10px 0', color: 'var(--primary-orange, #f57224)', whiteSpace: 'nowrap' }}>
+                                        {orders.length}
+                                    </p>
+                                    <p style={{ color: '#777', margin: 0, fontSize: '15px' }}>Total Orders</p>
                                 </div>
-                                <div style={{ flex: 1, minWidth: '150px', background: '#fcfcfc', padding: '30px', borderRadius: '8px', textAlign: 'center', border: '1px solid #eee' }}>
-                                    <p style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#333' }}>৳ {totalSpent.toLocaleString()}</p>
-                                    <p style={{ color: '#555', margin: 0, fontSize: '14px' }}>Total Spent</p>
+                                <div style={{ flex: 1, background: '#fff', padding: '30px 20px', borderRadius: '10px', textAlign: 'center', border: '1px solid #eaeaea', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                                    <p style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#333', whiteSpace: 'nowrap' }}>
+                                        ৳ {totalSpent.toLocaleString()}
+                                    </p>
+                                    <p style={{ color: '#777', margin: 0, fontSize: '15px' }}>Total Spent</p>
                                 </div>
-                                {/* FIX 1: Restored Active Status */}
-                                <div style={{ flex: 1, minWidth: '150px', background: '#fcfcfc', padding: '30px', borderRadius: '8px', textAlign: 'center', border: '1px solid #eee' }}>
-                                    <p style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#28a745' }}>Active</p>
-                                    <p style={{ color: '#555', margin: 0, fontSize: '14px' }}>Account Status</p>
+                                <div style={{ flex: 1, background: '#fff', padding: '30px 20px', borderRadius: '10px', textAlign: 'center', border: '1px solid #eaeaea', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                                    <p style={{ fontSize: '36px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#28a745', whiteSpace: 'nowrap' }}>
+                                        Active
+                                    </p>
+                                    <p style={{ color: '#777', margin: 0, fontSize: '15px' }}>Account Status</p>
                                 </div>
                             </div>
 
@@ -159,6 +180,28 @@ const Profile = () => {
                                 </p>
                             ) : (
                                 <p style={{ color: '#555', fontSize: '16px' }}>You have no recent activity.</p>
+                            )}
+
+                            {/* --- SELLER APPLICATION BANNER --- */}
+                            {user.role !== 'admin' && user.role !== 'seller' && (
+                                <div style={{ marginTop: '40px', padding: '20px', background: '#f8f9fa', borderRadius: '8px', border: '1px dashed #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                                    <div>
+                                        <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>Become a Seller</h4>
+                                        <p style={{ margin: 0, color: '#777', fontSize: '14px' }}>
+                                            {user.sellerStatus === 'pending'
+                                                ? "Your application is currently under review by our admin team."
+                                                : "Start selling your own devices on TechTown today!"}
+                                        </p>
+                                    </div>
+                                    {user.sellerStatus !== 'pending' && (
+                                        <button
+                                            onClick={handleApplySeller}
+                                            style={{ padding: '10px 20px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                        >
+                                            Apply Now
+                                        </button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
@@ -189,7 +232,7 @@ const Profile = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {selectedReceipt.orderItems?.map((item, idx) => (
+                                                {selectedReceipt.items?.map((item, idx) => (
                                                     <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
                                                         <td style={{ padding: '10px 0' }}>{item.name}</td>
                                                         <td>{item.quantity}</td>
@@ -241,34 +284,28 @@ const Profile = () => {
                         <div>
                             <h3 style={{ marginBottom: '25px', color: '#333' }}>Account Settings</h3>
                             <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555' }}>Full Name</label>
                                     <input type="text" name="name" value={formData.name} onChange={handleInputChange} required style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }} />
                                 </div>
-
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555' }}>Phone Number</label>
                                     <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} required style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }} />
                                 </div>
-
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555' }}>Shipping Address</label>
                                     <textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px', resize: 'vertical' }} />
                                 </div>
-
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555' }}>Email Address</label>
                                     <input type="email" value={user.email} disabled style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', background: '#f9f9f9', color: '#888', cursor: 'not-allowed', fontSize: '14px' }} />
                                 </div>
-
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555' }}>New Password <span style={{ fontWeight: 'normal', color: '#888' }}>(Leave blank to keep current)</span></label>
                                     <input type="password" name="password" value={formData.password} onChange={handleInputChange} placeholder="********" style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }} />
                                 </div>
-
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     disabled={isUpdating}
                                     style={{ padding: '15px', background: 'var(--primary-orange, #f57224)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', marginTop: '10px' }}
                                 >

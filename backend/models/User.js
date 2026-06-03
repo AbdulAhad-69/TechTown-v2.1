@@ -29,7 +29,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['customer', 'seller', 'admin'],
         default: 'customer'
-    }
+    },
+    sellerStatus: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected'],
+        default: 'none'
+    },
 }, { timestamps: true });
 
 // Pre-save hook: Encrypt password using bcrypt before saving to database

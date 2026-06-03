@@ -2,173 +2,322 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useProductStore } from '../store/productStore';
+import { FaTachometerAlt, FaBoxOpen, FaClipboardList, FaUsers, FaPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
 const Dashboard = () => {
+    // GLOBAL STATE & NAVIGATION
     const navigate = useNavigate();
-    const { user, isLoading: isAuthLoading } = useAuthStore();
-    const fetchProducts = useProductStore(state => state.fetchProducts);
+    const { user, isLoading } = useAuthStore();
+    const { products, fetchProducts } = useProductStore();
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [imageFile, setImageFile] = useState(null);
+    // LOCAL STATE
+    const [activeTab, setActiveTab] = useState('overview');
 
-    // Form State
-    const [formData, setFormData] = useState({
-        name: '',
-        category: 'Smartphones',
-        price: '',
-        stock: '',
-        condition_type: 'New'
-    });
+    // State to hold all system orders
+    const [allOrders, setAllOrders] = useState([]);
+    const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
-    // SECURITY: Redirect users who are not logged in
+    // State for Seller Requests
+    const [sellerRequests, setSellerRequests] = useState([]);
+    const [isLoadingSellers, setIsLoadingSellers] = useState(false);
+
+    // SECURITY & DATA FETCHING
     useEffect(() => {
-        if (!isAuthLoading) {
+        if (!isLoading) {
             if (!user) {
-                toast.error("You must be logged in to access the dashboard");
                 navigate('/login');
-            } else if (user.role !== 'admin' && user.role !== 'seller') {
-                // If they are just a standard customer, kick them out
-                toast.error("Access denied. Seller Dashboard is restricted.");
-                navigate('/');
+            } else if (user.role === 'user') {
+                navigate('/profile'); 
+            } else {
+                fetchProducts(); 
+                fetchAllOrders(); 
+                if (user.role === 'admin') fetchSellerRequests();
             }
         }
-    }, [user, isAuthLoading, navigate]);
+    }, [user, isLoading, navigate, fetchProducts]);
 
-    const handleInputChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const handleImageChange = (e) => {
-        setImageFile(e.target.files[0]);
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!imageFile) {
-            return toast.error("Please select an image for the product");
-        }
-
-        setIsSubmitting(true);
-
-        // We MUST use FormData when uploading files, standard JSON will not work
-        const uploadData = new FormData();
-        uploadData.append('name', formData.name);
-        uploadData.append('category', formData.category);
-        uploadData.append('price', formData.price);
-        uploadData.append('stock', formData.stock);
-        uploadData.append('condition_type', formData.condition_type);
-        uploadData.append('image', imageFile); // 'image' matches the name in our Multer backend
-
+    // Fetch all pending seller requests
+    const fetchSellerRequests = async () => {
+        setIsLoadingSellers(true);
         try {
-            await axios.post('/api/products', uploadData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-
-            toast.success("Product successfully added to the store!");
-
-            // Reset the form
-            setFormData({ name: '', category: 'Smartphones', price: '', stock: '', condition_type: 'New' });
-            setImageFile(null);
-            document.getElementById('imageInput').value = ''; // Clear file input UI
-
-            // Tell Zustand to refresh the global product list so it appears on the home page instantly
-            fetchProducts();
-
+            const res = await axios.get('/api/auth/seller-requests');
+            setSellerRequests(res.data);
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to upload product");
+            console.error("Could not fetch seller requests:", error);
         } finally {
-            setIsSubmitting(false);
+            setIsLoadingSellers(false);
         }
     };
 
-    // Show nothing while checking authentication or if they don't have access to prevent UI flashing
-    if (isAuthLoading || !user || (user.role !== 'admin' && user.role !== 'seller')) return null;
+    // Approve or Reject a seller
+    const handleSellerAction = async (userId, status) => {
+        try {
+            await axios.put(`/api/auth/${userId}/seller-status`, { status });
+            toast.success(`Seller application ${status}`);
+            fetchSellerRequests(); // Refresh the list
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to update status");
+        }
+    };
+
+    // Fetch all orders for the Admin/Seller
+    const fetchAllOrders = async () => {
+        setIsLoadingOrders(true);
+        try {
+            // Assuming standard REST pattern. We will build this backend route if it fails!
+            const res = await axios.get('/api/orders');
+            // Sort by newest first
+            const sortedOrders = res.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setAllOrders(sortedOrders);
+        } catch (error) {
+            console.error("Could not fetch all orders:", error);
+            // We don't toast error here yet, in case the backend route doesn't exist.
+        } finally {
+            setIsLoadingOrders(false);
+        }
+    };
+
+    // Function to change order status
+    const handleStatusChange = async (orderId, newStatus) => {
+        try {
+            await axios.put(`/api/orders/${orderId}/status`, { status: newStatus });
+            toast.success(`Order marked as ${newStatus}`);
+            fetchAllOrders(); // Refresh the list to show the new status
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to update status");
+        }
+    };
+
+    if (isLoading) return <div style={{ textAlign: 'center', marginTop: '100px', fontSize: '18px', color: '#555' }}>Loading dashboard...</div>;
+    if (!user || user.role === 'user') return null;
+
+    // Calculate real dynamic numbers for the Overview tab
+    const pendingOrdersCount = allOrders.filter(order => order.status === 'Pending').length;
 
     return (
-        <section className="admin-body"></section>
-    );
+        <section className="mt-60 mb-80" style={{ maxWidth: '1200px', margin: '60px auto', padding: '0 20px' }}>
 
-    // Show nothing while checking authentication to prevent UI flashing
-    if (isAuthLoading || !user) return null;
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '30px' }}>
+                <div>
+                    <h2 style={{ margin: 0, color: '#333' }}>
+                        {user.role === 'admin' ? 'Admin Command Center' : 'Seller Dashboard'}
+                    </h2>
+                    <p style={{ color: '#777', margin: '5px 0 0 0' }}>Manage your store, orders, and inventory.</p>
+                </div>
+                <span style={{ background: user.role === 'admin' ? '#dc3545' : '#17a2b8', color: '#fff', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase' }}>
+                    {user.role}
+                </span>
+            </div>
 
-    return (
-        <section className="admin-body">
-            <div className="admin-container">
-                <div className="admin-header">
-                    <h2>Seller Dashboard</h2>
-                    <div className="stat-badge">
-                        Logged in as: <strong>{user.name}</strong> ({user.role})
-                    </div>
+            <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+
+                {/* LEFT SIDEBAR NAVIGATION */}
+                <div style={{ flex: '1 1 250px', background: '#fff', borderRadius: '8px', border: '1px solid #eee', overflow: 'hidden' }}>
+                    <ul style={{ listStyle: 'none', padding: '0', margin: 0 }}>
+                        <li
+                            className="sidebar-tab"
+                            onClick={() => setActiveTab('overview')}
+                            style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'overview' ? 'bold' : 'normal', background: activeTab === 'overview' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'overview' ? '#fff' : '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
+                        >
+                            <FaTachometerAlt style={{ pointerEvents: 'none' }} /> Overview
+                        </li>
+                        <li
+                            className="sidebar-tab"
+                            onClick={() => setActiveTab('products')}
+                            style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'products' ? 'bold' : 'normal', background: activeTab === 'products' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'products' ? '#fff' : '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
+                        >
+                            <FaBoxOpen style={{ pointerEvents: 'none' }} /> Manage Products
+                        </li>
+                        <li
+                            className="sidebar-tab"
+                            onClick={() => setActiveTab('orders')}
+                            style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'orders' ? 'bold' : 'normal', background: activeTab === 'orders' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'orders' ? '#fff' : '#555', transition: 'all 0.2s', borderBottom: '1px solid #f9f9f9' }}
+                        >
+                            <FaClipboardList style={{ pointerEvents: 'none' }} /> Manage Orders
+                        </li>
+                        {user.role === 'admin' && (
+                            <li
+                                className="sidebar-tab"
+                                onClick={() => setActiveTab('sellers')}
+                                style={{ padding: '15px 25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '15px', fontWeight: activeTab === 'sellers' ? 'bold' : 'normal', background: activeTab === 'sellers' ? 'var(--primary-orange, #f57224)' : 'transparent', color: activeTab === 'sellers' ? '#fff' : '#555', transition: 'all 0.2s' }}
+                            >
+                                <FaUsers style={{ pointerEvents: 'none' }} /> Seller Requests
+                            </li>
+                        )}
+                    </ul>
                 </div>
 
-                <div style={{ background: '#fff', padding: '30px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                    <h3 style={{ marginBottom: '20px', borderBottom: '2px solid #f4f6f9', paddingBottom: '10px' }}>
-                        Add New Product
-                    </h3>
+                {/* RIGHT CONTENT AREA */}
+                <div style={{ flex: '1 1 750px', background: '#fff', borderRadius: '8px', border: '1px solid #eee', padding: '40px', minHeight: '600px' }}>
 
-                    <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-
-                        {/* Name */}
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Product Name</label>
-                            <input type="text" name="name" value={formData.name} onChange={handleInputChange} required style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }} placeholder="e.g., iPhone 15 Pro Max" />
-                        </div>
-
-                        {/* Category */}
+                    {/* --- TAB: OVERVIEW --- */}
+                    {activeTab === 'overview' && (
                         <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Category</label>
-                            <select name="category" value={formData.category} onChange={handleInputChange} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}>
-                                <option value="Smartphones">Smartphones</option>
-                                <option value="Laptops">Laptops</option>
-                                <option value="Gadgets">Gadgets</option>
-                                <option value="Accessories">Accessories</option>
-                            </select>
+                            <h3 style={{ marginBottom: '25px', color: '#333' }}>Store Overview</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                                <div style={{ background: '#fcfcfc', padding: '30px', borderRadius: '8px', textAlign: 'center', border: '1px solid #eee' }}>
+                                    <p style={{ fontSize: '42px', fontWeight: 'bold', margin: '0 0 10px 0', color: 'var(--primary-orange, #f57224)' }}>{products.length}</p>
+                                    <p style={{ color: '#555', margin: 0, fontSize: '16px' }}>Total Devices Listed</p>
+                                </div>
+                                <div style={{ background: '#fcfcfc', padding: '30px', borderRadius: '8px', textAlign: 'center', border: '1px solid #eee' }}>
+                                    {/* FIX: Now displays the REAL pending orders count */}
+                                    <p style={{ fontSize: '42px', fontWeight: 'bold', margin: '0 0 10px 0', color: pendingOrdersCount > 0 ? '#dc3545' : '#17a2b8' }}>{pendingOrdersCount}</p>
+                                    <p style={{ color: '#555', margin: 0, fontSize: '16px' }}>Pending Orders</p>
+                                </div>
+                            </div>
                         </div>
+                    )}
 
-                        {/* Condition */}
+                    {/* --- TAB: PRODUCTS (Unchanged for now) --- */}
+                    {activeTab === 'products' && (
                         <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Condition</label>
-                            <select name="condition_type" value={formData.condition_type} onChange={handleInputChange} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}>
-                                <option value="New">New</option>
-                                <option value="Used">Used</option>
-                                <option value="Refurbished">Refurbished</option>
-                            </select>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                                <h3 style={{ margin: 0, color: '#333' }}>Inventory Management</h3>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--primary-orange, #f57224)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                    <FaPlus /> Add New Device
+                                </button>
+                            </div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                <thead>
+                                    <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
+                                        <th style={{ padding: '15px', color: '#555' }}>Device</th>
+                                        <th style={{ padding: '15px', color: '#555' }}>Price</th>
+                                        <th style={{ padding: '15px', color: '#555' }}>Stock</th>
+                                        <th style={{ padding: '15px', color: '#555', textAlign: 'center' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products.map((product) => (
+                                        <tr key={product._id} style={{ borderBottom: '1px solid #eee' }}>
+                                            <td style={{ padding: '15px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                <img
+                                                    src={product.image?.startsWith('http') || product.image?.startsWith('/assets') ? product.image : `/${product.image}`}
+                                                    alt={product.name}
+                                                    style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+                                                    onError={(e) => e.target.src = '/assets/images/TechTown Logo1.png'}
+                                                />
+                                                <span style={{ fontWeight: 'bold', color: '#333' }}>{product.name}</span>
+                                            </td>
+                                            <td style={{ padding: '15px', color: '#555' }}>৳ {product.price.toLocaleString()}</td>
+                                            <td style={{ padding: '15px' }}>
+                                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', background: product.stock > 0 ? '#d4edda' : '#f8d7da', color: product.stock > 0 ? '#155724' : '#721c24' }}>
+                                                    {product.stock} left
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '15px', textAlign: 'center' }}>
+                                                <button style={{ background: '#343a40', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', marginRight: '5px' }}>Edit</button>
+                                                <button style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Delete</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
+                    )}
 
-                        {/* Price */}
+                    {/* --- TAB: ORDERS (NEW REAL DATA) --- */}
+                    {activeTab === 'orders' && (
                         <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Price (৳)</label>
-                            <input type="number" name="price" value={formData.price} onChange={handleInputChange} required min="0" style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }} />
-                        </div>
+                            <h3 style={{ marginBottom: '25px', color: '#333' }}>Order Management</h3>
 
-                        {/* Stock */}
+                            {isLoadingOrders ? (
+                                <p>Loading orders...</p>
+                            ) : allOrders.length === 0 ? (
+                                <p style={{ color: '#777' }}>No orders have been placed yet.</p>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Order ID</th>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Date</th>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Customer</th>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Total</th>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Status</th>
+                                            <th style={{ padding: '15px 10px', color: '#555', textAlign: 'center' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {allOrders.map((order) => (
+                                            <tr key={order._id} style={{ borderBottom: '1px solid #eee' }}>
+                                                <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>#{order._id.substring(0, 6).toUpperCase()}</td>
+                                                <td style={{ padding: '15px 10px', color: '#777' }}>{new Date(order.createdAt).toLocaleDateString()}</td>
+                                                <td style={{ padding: '15px 10px', color: '#333' }}>{order.userId?.name || 'Guest'}</td>                                                <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>৳ {order.total_amount?.toLocaleString()}</td>
+                                                <td style={{ padding: '15px 10px' }}>
+                                                    <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', background: order.status === 'Delivered' ? '#d4edda' : (order.status === 'Pending' ? '#fff3cd' : '#e2e3e5'), color: order.status === 'Delivered' ? '#155724' : (order.status === 'Pending' ? '#856404' : '#383d41') }}>
+                                                        {order.status}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                                    <select
+                                                        value={order.status}
+                                                        onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                                        style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '12px', cursor: 'pointer' }}
+                                                    >
+                                                        <option value="Pending">Pending</option>
+                                                        <option value="Processing">Processing</option>
+                                                        <option value="Shipped">Shipped</option>
+                                                        <option value="Delivered">Delivered</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    )}
+
+                    {/* --- TAB: SELLERS --- */}
+                    {activeTab === 'sellers' && (
                         <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Stock Quantity</label>
-                            <input type="number" name="stock" value={formData.stock} onChange={handleInputChange} required min="1" style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                            <h3 style={{ marginBottom: '25px', color: '#333' }}>Seller Approval System</h3>
+                            
+                            {isLoadingSellers ? (
+                                <p>Loading requests...</p>
+                            ) : sellerRequests.length === 0 ? (
+                                <p style={{ color: '#777' }}>No pending seller requests at this time.</p>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #eee' }}>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Name</th>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Email</th>
+                                            <th style={{ padding: '15px 10px', color: '#555' }}>Status</th>
+                                            <th style={{ padding: '15px 10px', color: '#555', textAlign: 'center' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sellerRequests.map((reqUser) => (
+                                            <tr key={reqUser._id} style={{ borderBottom: '1px solid #eee' }}>
+                                                <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{reqUser.name}</td>
+                                                <td style={{ padding: '15px 10px', color: '#777' }}>{reqUser.email}</td>
+                                                <td style={{ padding: '15px 10px' }}>
+                                                    <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', background: '#fff3cd', color: '#856404' }}>
+                                                        Pending
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                                    <button 
+                                                        onClick={() => handleSellerAction(reqUser._id, 'approved')}
+                                                        style={{ background: '#28a745', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', marginRight: '5px', fontWeight: 'bold' }}>
+                                                        Approve
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleSellerAction(reqUser._id, 'rejected')}
+                                                        style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                                                        Reject
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
+                    )}
 
-                        {/* Image Upload */}
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Product Image</label>
-                            <input type="file" id="imageInput" accept="image/jpeg, image/png, image/webp" onChange={handleImageChange} required style={{ width: '100%', padding: '10px', border: '1px dashed #ccc', borderRadius: '4px', background: '#fafafa' }} />
-                            <small style={{ color: '#777', marginTop: '5px', display: 'block' }}>Only JPG, PNG, and WEBP formats allowed (Max 5MB). Image will be securely hosted on Cloudinary.</small>
-                        </div>
-
-                        {/* Submit Button */}
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                style={{ width: '100%', padding: '15px', background: 'var(--primary-orange, #f57224)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}
-                            >
-                                {isSubmitting ? 'Uploading to Cloudinary...' : 'Add Product'}
-                            </button>
-                        </div>
-
-                    </form>
                 </div>
             </div>
         </section>
