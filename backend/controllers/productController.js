@@ -79,9 +79,23 @@ const deleteProduct = async (req, res) => {
     }
 };
 
+// @desc    Get logged in seller's specific products
+// @route   GET /api/products/seller/myproducts
+// @access  Private (Admin & Seller only)
+const getSellerProducts = async (req, res) => {
+    try {
+        // Fetch only products created by the specific user making the request
+        const products = await Product.find({ sellerId: req.user._id }).sort({ createdAt: -1 });
+        res.status(200).json(products);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getProducts,
     getProductById,
     createProduct,
-    deleteProduct
+    deleteProduct,
+    getSellerProducts
 };

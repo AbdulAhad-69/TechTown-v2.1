@@ -40,7 +40,16 @@ const admin = (req, res, next) => {
     }
 };
 
-// 3. Seller role authorization (Admins can also bypass this)
+// 3. Multi-Vendor Gatekeeper ---
+const adminOrSeller = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'seller')) {
+        next();
+    } else {
+        res.status(401).json({ message: 'Not authorized. You must be an Admin or an approved Seller.' });
+    }
+};
+
+// 4. Seller role authorization (Admins can also bypass this)
 const seller = (req, res, next) => {
     if (req.user && (req.user.role === 'seller' || req.user.role === 'admin')) {
         next();
@@ -49,4 +58,4 @@ const seller = (req, res, next) => {
     }
 };
 
-module.exports = { protect, admin, seller };
+module.exports = { protect, admin, seller, adminOrSeller };

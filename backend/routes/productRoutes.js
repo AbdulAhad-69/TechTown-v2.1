@@ -1,16 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { getProducts, getProductById, createProduct, deleteProduct } = require('../controllers/productController');
-const { protect, seller } = require('../middlewares/authMiddleware');
-const upload = require('../config/upload'); // Cloudinary upload middleware
+const {
+    getProducts,
+    getProductById,
+    createProduct,
+    deleteProduct,
+    getSellerProducts 
+} = require('../controllers/productController');
 
-// Public Routes (Anyone can view products)
+const { protect, adminOrSeller } = require('../middlewares/authMiddleware'); 
+
+// --- PUBLIC ROUTES (Anyone can view products) ---
 router.get('/', getProducts);
 router.get('/:id', getProductById);
 
-// Protected Routes (Only Sellers and Admins can add/delete)
-// 'upload.single("image")' tells Multer to look for a file named "image" in the form data
-router.post('/', protect, seller, upload.single('image'), createProduct);
-router.delete('/:id', protect, seller, deleteProduct);
+// --- MULTI-VENDOR ROUTES (Admins AND Sellers) ---
+// Note: /seller/myproducts MUST go above /:id
+router.get('/seller/myproducts', protect, adminOrSeller, getSellerProducts); 
+router.post('/', protect, adminOrSeller, createProduct);
+router.delete('/:id', protect, adminOrSeller, deleteProduct);
 
 module.exports = router;
