@@ -20,9 +20,9 @@ const Dashboard = () => {
     // --- UPGRADED PRODUCT FORM STATE ---
     const [showAddForm, setShowAddForm] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [editingId, setEditingId] = useState(null); 
+    const [editingId, setEditingId] = useState(null);
     const [imagePreview, setImagePreview] = useState(null); // <-- NEW: Live image preview
-    
+
     const [newProduct, setNewProduct] = useState({
         name: '',
         price: '',
@@ -30,16 +30,16 @@ const Dashboard = () => {
         stock: '',
         condition_type: 'New',
         description: '', // <-- NEW: Description field
-        image: null 
+        image: null
     });
 
     useEffect(() => {
         if (!isLoading) {
             if (!user) navigate('/login');
-            else if (user.role === 'user') navigate('/profile'); 
+            else if (user.role === 'user') navigate('/profile');
             else {
-                fetchProducts(); 
-                fetchAllOrders(); 
+                fetchProducts();
+                fetchAllOrders();
                 if (user.role === 'admin') fetchSellerRequests();
             }
         }
@@ -61,7 +61,7 @@ const Dashboard = () => {
         try {
             await axios.put(`/api/auth/${userId}/seller-status`, { status });
             toast.success(`Seller application ${status}`);
-            fetchSellerRequests(); 
+            fetchSellerRequests();
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to update status");
         }
@@ -84,7 +84,7 @@ const Dashboard = () => {
         try {
             await axios.put(`/api/orders/${orderId}/status`, { status: newStatus });
             toast.success(`Order marked as ${newStatus}`);
-            fetchAllOrders(); 
+            fetchAllOrders();
         } catch (error) {
             toast.error("Failed to update status");
         }
@@ -104,7 +104,7 @@ const Dashboard = () => {
             try {
                 await axios.delete(`/api/products/${productId}`);
                 toast.success("Device deleted successfully");
-                fetchProducts(); 
+                fetchProducts();
             } catch (error) {
                 toast.error(error.response?.data?.message || "Failed to delete device");
             }
@@ -122,12 +122,12 @@ const Dashboard = () => {
             description: product.description || '',
             image: null // Require a new upload if they want to change the picture
         });
-        
+
         // Show the existing image from the database in the preview box
         if (product.image) {
             setImagePreview(product.image.startsWith('http') || product.image.startsWith('/assets') ? product.image : `/${product.image}`);
         }
-        
+
         setShowAddForm(true);
     };
 
@@ -149,7 +149,7 @@ const Dashboard = () => {
         formData.append('stock', newProduct.stock);
         formData.append('condition_type', newProduct.condition_type);
         formData.append('description', newProduct.description); // <-- NOW SAVING DESCRIPTION
-        
+
         if (newProduct.image) {
             formData.append('image', newProduct.image);
         }
@@ -166,9 +166,9 @@ const Dashboard = () => {
                 });
                 toast.success("Device added successfully!");
             }
-            
+
             closeAndResetForm();
-            fetchProducts(); 
+            fetchProducts();
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to save device");
         } finally {
@@ -180,6 +180,18 @@ const Dashboard = () => {
     if (!user || user.role === 'user') return null;
 
     const pendingOrdersCount = allOrders.filter(order => order.status === 'Pending').length;
+
+    // --- LOW STOCK ALERT LOGIC ---
+    const LOW_STOCK_THRESHOLD = 5;
+    const lowStockItems = products.filter(product => product.stock < LOW_STOCK_THRESHOLD);
+    const lowStockCount = lowStockItems.length;
+
+    // Automated Notification Alert
+    useEffect(() => {
+        if (lowStockCount > 0 && !isLoading) {
+            toast.warn(`Alert: ${lowStockCount} items have dropped below 5 units!`, { toastId: 'low-stock' });
+        }
+    }, [lowStockCount, isLoading]);
 
     return (
         <section className="mt-60 mb-80" style={{ maxWidth: '1200px', margin: '60px auto', padding: '0 20px', position: 'relative' }}>
@@ -233,7 +245,26 @@ const Dashboard = () => {
                                     <p style={{ fontSize: '42px', fontWeight: 'bold', margin: '0 0 10px 0', color: pendingOrdersCount > 0 ? '#dc3545' : '#17a2b8' }}>{pendingOrdersCount}</p>
                                     <p style={{ color: '#555', margin: 0, fontSize: '16px' }}>Pending Orders</p>
                                 </div>
+                                {/* NEW: Low Stock Metric Card */}
+                                <div style={{ background: lowStockCount > 0 ? '#fff3cd' : '#fcfcfc', padding: '30px', borderRadius: '8px', textAlign: 'center', border: lowStockCount > 0 ? '1px solid #ffeeba' : '1px solid #eee' }}>
+                                    <p style={{ fontSize: '42px', fontWeight: 'bold', margin: '0 0 10px 0', color: lowStockCount > 0 ? '#856404' : '#28a745' }}>{lowStockCount}</p>
+                                    <p style={{ color: lowStockCount > 0 ? '#856404' : '#555', margin: 0, fontSize: '16px' }}>Low Stock Alerts (&lt; 5)</p>
+                                </div>
                             </div>
+
+                            {/* NEW: Actionable Low Stock List */}
+                            {lowStockCount > 0 && (
+                                <div style={{ marginTop: '30px', padding: '20px', background: '#fffaf0', borderLeft: '4px solid #f5a623', borderRadius: '4px' }}>
+                                    <h4 style={{ margin: '0 0 15px 0', color: '#d97706' }}>⚠️ Action Required: Restock Inventory</h4>
+                                    <ul style={{ margin: 0, paddingLeft: '20px', color: '#92400e' }}>
+                                        {lowStockItems.map(item => (
+                                            <li key={item._id} style={{ marginBottom: '8px' }}>
+                                                <strong>{item.name}</strong> — <span style={{ fontWeight: 'bold', color: item.stock === 0 ? '#dc3545' : 'inherit' }}>{item.stock === 0 ? 'OUT OF STOCK' : `Only ${item.stock} left`}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -265,8 +296,15 @@ const Dashboard = () => {
                                             </td>
                                             <td style={{ padding: '15px', color: '#555' }}>৳ {product.price.toLocaleString()}</td>
                                             <td style={{ padding: '15px' }}>
-                                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', background: product.stock > 0 ? '#d4edda' : '#f8d7da', color: product.stock > 0 ? '#155724' : '#721c24' }}>
-                                                    {product.stock} left
+                                                <span style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    fontWeight: 'bold',
+                                                    background: Number(product.stock) === 0 ? '#f8d7da' : Number(product.stock) <= 5 ? '#fff3cd' : '#d4edda',
+                                                    color: Number(product.stock) === 0 ? '#721c24' : Number(product.stock) <= 5 ? '#856404' : '#155724'
+                                                }}>
+                                                    {Number(product.stock) === 0 ? 'Out of Stock' : Number(product.stock) <= 5 ? `Low Stock (${product.stock})` : `${product.stock} left`}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '15px', textAlign: 'center' }}>
@@ -358,7 +396,7 @@ const Dashboard = () => {
             {showAddForm && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(3px)' }}>
                     <div style={{ background: '#fff', padding: '30px 40px', borderRadius: '12px', width: '700px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-                        
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '25px' }}>
                             <h3 style={{ margin: 0, color: '#333', fontSize: '20px' }}>
                                 {editingId ? 'Edit Product Details' : 'Add New Product'}
@@ -369,16 +407,16 @@ const Dashboard = () => {
                         </div>
 
                         <form onSubmit={handleSubmitProduct} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            
+
                             {/* Row 1: Name & Price */}
                             <div style={{ display: 'flex', gap: '20px' }}>
                                 <div style={{ flex: 2 }}>
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>Device Name</label>
-                                    <input type="text" placeholder="e.g. iPhone 15 Pro Max" required value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }} />
+                                    <input type="text" placeholder="e.g. iPhone 15 Pro Max" required value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }} />
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>Price (৳)</label>
-                                    <input type="number" placeholder="0.00" required value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }} />
+                                    <input type="number" placeholder="0.00" required value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }} />
                                 </div>
                             </div>
 
@@ -386,7 +424,7 @@ const Dashboard = () => {
                             <div style={{ display: 'flex', gap: '20px' }}>
                                 <div style={{ flex: 2 }}>
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>Category</label>
-                                    <select required value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', background: '#fff' }}>
+                                    <select required value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', background: '#fff' }}>
                                         <option value="" disabled>Select Category</option>
                                         <option value="Smartphones">Smartphones</option>
                                         <option value="Laptops">Laptops</option>
@@ -397,30 +435,30 @@ const Dashboard = () => {
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>Stock Quantity</label>
-                                    <input type="number" placeholder="0" required value={newProduct.stock} onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }} />
+                                    <input type="number" placeholder="0" required value={newProduct.stock} onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }} />
                                 </div>
                             </div>
 
                             {/* Row 3: Condition/Description & Image Upload/Preview */}
                             <div style={{ display: 'flex', gap: '20px' }}>
-                                
+
                                 {/* Left Side: Condition & Description */}
                                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>Condition</label>
-                                    <select value={newProduct.condition_type} onChange={(e) => setNewProduct({...newProduct, condition_type: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', background: '#fff', marginBottom: '15px' }}>
+                                    <select value={newProduct.condition_type} onChange={(e) => setNewProduct({ ...newProduct, condition_type: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', background: '#fff', marginBottom: '15px' }}>
                                         <option value="New">New</option>
                                         <option value="Used - Like New">Used - Like New</option>
                                         <option value="Used - Good">Used - Good</option>
                                     </select>
 
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>Product Description</label>
-                                    <textarea 
-                                        required 
-                                        rows="6" 
+                                    <textarea
+                                        required
+                                        rows="6"
                                         placeholder="Detailed description of the device..."
-                                        value={newProduct.description} 
-                                        onChange={(e) => setNewProduct({...newProduct, description: e.target.value})} 
-                                        style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', resize: 'vertical', flex: 1 }} 
+                                        value={newProduct.description}
+                                        onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                                        style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', resize: 'vertical', flex: 1 }}
                                     />
                                 </div>
 
@@ -429,7 +467,7 @@ const Dashboard = () => {
                                     <label style={{ display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px', fontWeight: 'bold' }}>
                                         {editingId ? 'Update Image (Optional)' : 'Device Image'}
                                     </label>
-                                    
+
                                     {/* The Image Preview Box */}
                                     <div style={{ flex: 1, border: '1px dashed #ccc', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f8f9fa', marginBottom: '10px', overflow: 'hidden', minHeight: '180px' }}>
                                         {imagePreview ? (
