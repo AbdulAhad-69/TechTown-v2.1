@@ -12,11 +12,11 @@ const Products = () => {
     // =========================================================
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
-    
+
     // Default sorting is now our custom category ranking
     const [sortBy, setSortBy] = useState('default');
     const [isSortOpen, setIsSortOpen] = useState(false);
-    
+
     const [minPriceInput, setMinPriceInput] = useState('');
     const [maxPriceInput, setMaxPriceInput] = useState('');
     const [appliedMinPrice, setAppliedMinPrice] = useState(null);
@@ -31,10 +31,10 @@ const Products = () => {
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
-        
+
         const categoryParam = params.get('category');
         if (categoryParam) setSelectedCategory(categoryParam);
-        
+
         const searchParam = params.get('search');
         if (searchParam) setGlobalSearchQuery(searchParam);
         else setGlobalSearchQuery('');
@@ -49,9 +49,9 @@ const Products = () => {
     };
 
     const handleConditionToggle = (condition) => {
-        setSelectedConditions(prev => 
-            prev.includes(condition) 
-                ? prev.filter(c => c !== condition) 
+        setSelectedConditions(prev =>
+            prev.includes(condition)
+                ? prev.filter(c => c !== condition)
                 : [...prev, condition]
         );
     };
@@ -92,7 +92,7 @@ const Products = () => {
             // Give unknown categories a rank of 99 so they go to the absolute bottom
             const rankA = categoryRank[a.category] || 99;
             const rankB = categoryRank[b.category] || 99;
-            
+
             if (rankA !== rankB) {
                 return rankA - rankB; // Sort by the hierarchical number
             }
@@ -106,7 +106,7 @@ const Products = () => {
 
     const categories = ['All', 'Smartphones', 'Laptops', 'Cameras', 'Smart Watches', 'Accessories'];
     const conditionOptions = ['New', 'Used - Like New', 'Used - Good'];
-    
+
     const sortOptions = {
         'default': 'Default View',
         'newest': 'Newest Arrivals',
@@ -119,16 +119,16 @@ const Products = () => {
     // =========================================================
     return (
         <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', paddingTop: '30px', paddingBottom: '60px' }}>
-            
+
             <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 20px', display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
-                
+
                 {/* ========================================================= */}
                 {/* LEFT SIDEBAR (The Filter Engine) */}
                 {/* ========================================================= */}
-                <div style={{ 
-                    width: '260px', 
-                    flexShrink: 0, 
-                    position: 'sticky', 
+                <div style={{
+                    width: '260px',
+                    flexShrink: 0,
+                    position: 'sticky',
                     top: '20px',
                     background: '#ffffff',
                     padding: '20px',
@@ -155,7 +155,7 @@ const Products = () => {
                         <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: '#888', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '10px' }}>Categories</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {categories.map(cat => (
-                                <button 
+                                <button
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
                                     style={{
@@ -186,8 +186,8 @@ const Products = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {conditionOptions.map(cond => (
                                 <label key={cond} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#444', cursor: 'pointer' }}>
-                                    <input 
-                                        type="checkbox" 
+                                    <input
+                                        type="checkbox"
                                         checked={selectedConditions.includes(cond)}
                                         onChange={() => handleConditionToggle(cond)}
                                         style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--primary-orange, #f57224)' }}
@@ -207,7 +207,7 @@ const Products = () => {
                 {/* RIGHT CONTENT AREA (Compact Header & Grid) */}
                 {/* ========================================================= */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    
+
                     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
                         <div>
                             <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111', margin: '0 0 4px 0' }}>
@@ -220,19 +220,19 @@ const Products = () => {
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <button 
+                            <button
                                 onClick={() => setIsMobileSidebarOpen(true)}
                                 style={{ display: window.innerWidth > 992 ? 'none' : 'flex', alignItems: 'center', gap: '6px', background: '#fff', border: '1px solid #cbd5e1', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
                             >
-                                <FaFilter size={12}/> Filters
+                                <FaFilter size={12} /> Filters
                             </button>
 
                             <div style={{ position: 'relative' }}>
-                                <button 
+                                <button
                                     onClick={() => setIsSortOpen(!isSortOpen)}
-                                    style={{ 
-                                        display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', 
-                                        padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', 
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px', background: '#fff',
+                                        padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0',
                                         cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', color: '#111',
                                         transition: 'border-color 0.2s', outline: 'none'
                                     }}
@@ -241,38 +241,38 @@ const Products = () => {
                                 >
                                     <span style={{ color: '#888', fontWeight: 'bold', marginRight: '4px' }}>Sort:</span>
                                     {sortOptions[sortBy]}
-                                    <FaChevronDown style={{ 
+                                    <FaChevronDown style={{
                                         color: '#888', fontSize: '10px', marginLeft: '4px', transition: 'transform 0.2s ease',
-                                        transform: isSortOpen ? 'rotate(180deg)' : 'rotate(0)' 
+                                        transform: isSortOpen ? 'rotate(180deg)' : 'rotate(0)'
                                     }} />
                                 </button>
 
                                 {isSortOpen && (
-                                    <div 
-                                        style={{ position: 'fixed', inset: 0, zIndex: 40 }} 
+                                    <div
+                                        style={{ position: 'fixed', inset: 0, zIndex: 40 }}
                                         onClick={() => setIsSortOpen(false)}
                                     ></div>
                                 )}
 
                                 {isSortOpen && (
-                                    <div style={{ 
-                                        position: 'absolute', top: '100%', right: 0, marginTop: '6px', 
-                                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', 
-                                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', zIndex: 50, 
-                                        width: '180px', overflow: 'hidden' 
+                                    <div style={{
+                                        position: 'absolute', top: '100%', right: 0, marginTop: '6px',
+                                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px',
+                                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', zIndex: 50,
+                                        width: '180px', overflow: 'hidden'
                                     }}>
                                         {Object.entries(sortOptions).map(([key, label]) => (
-                                            <div 
+                                            <div
                                                 key={key}
                                                 onClick={() => { setSortBy(key); setIsSortOpen(false); }}
-                                                style={{ 
+                                                style={{
                                                     padding: '12px 16px', fontSize: '13px', cursor: 'pointer', transition: '0.2s',
-                                                    fontWeight: sortBy === key ? 'bold' : 'normal', 
-                                                    color: sortBy === key ? 'var(--primary-orange, #f57224)' : '#333', 
+                                                    fontWeight: sortBy === key ? 'bold' : 'normal',
+                                                    color: sortBy === key ? 'var(--primary-orange, #f57224)' : '#333',
                                                     background: sortBy === key ? '#fff0e6' : '#fff'
                                                 }}
-                                                onMouseEnter={(e) => { if(sortBy !== key) e.currentTarget.style.background = '#f8fafc' }}
-                                                onMouseLeave={(e) => { if(sortBy !== key) e.currentTarget.style.background = '#fff' }}
+                                                onMouseEnter={(e) => { if (sortBy !== key) e.currentTarget.style.background = '#f8fafc' }}
+                                                onMouseLeave={(e) => { if (sortBy !== key) e.currentTarget.style.background = '#fff' }}
                                             >
                                                 {label}
                                             </div>
@@ -312,30 +312,34 @@ const Products = () => {
 // =========================================================
 const ProductCard = ({ product }) => (
     <Link to={`/product/${product._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div style={{ 
-            background: '#ffffff', borderRadius: '12px', padding: '14px', border: '1px solid #f1f5f9', 
+        <div style={{
+            background: '#ffffff', borderRadius: '12px', padding: '14px', border: '1px solid #f1f5f9',
             transition: 'all 0.3s ease', display: 'flex', flexDirection: 'column', height: '100%',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 20px -5px rgba(0, 0, 0, 0.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.02)'; e.currentTarget.style.borderColor = '#f1f5f9'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 20px -5px rgba(0, 0, 0, 0.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.02)'; e.currentTarget.style.borderColor = '#f1f5f9'; }}
         >
-            <div style={{ 
-                height: '200px', backgroundColor: '#f8fafc', borderRadius: '8px', display: 'flex', alignItems: 'center', 
+            <div style={{
+                height: '200px', backgroundColor: '#f8fafc', borderRadius: '8px', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', marginBottom: '16px', padding: '15px', position: 'relative'
             }}>
-                <img src={product.image?.startsWith('http') || product.image?.startsWith('/assets') ? product.image : `/${product.image}`} 
-                     alt={product.name}
-                     style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', mixBlendMode: 'multiply', transition: 'transform 0.3s ease' }} 
-                     onError={(e) => e.target.src = '/assets/images/TechTown Logo1.png'}
+                <img src={product.image?.startsWith('http') || product.image?.startsWith('/assets') ? product.image : `/${product.image}`}
+                    alt={product.name}
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', mixBlendMode: 'multiply', transition: 'transform 0.3s ease' }}
+                    onError={(e) => e.target.src = '/assets/images/TechTown Logo1.png'}
                 />
-                {product.stock <= 0 && (
+                {product.stock === 0 ? (
                     <span style={{ position: 'absolute', top: '12px', right: '12px', background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 'bold', padding: '4px 6px', borderRadius: '4px', zIndex: 20, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Out of Stock
                     </span>
-                )}
+                ) : product.stock <= 5 ? (
+                    <span style={{ position: 'absolute', top: '12px', right: '12px', background: '#f5a623', color: '#fff', fontSize: '9px', fontWeight: 'bold', padding: '4px 6px', borderRadius: '4px', zIndex: 20, textTransform: 'uppercase', letterSpacing: '0.5px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                        Low Stock ({product.stock})
+                    </span>
+                ) : null}
             </div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'space-between', padding: '0 4px' }}>
                 <div>
                     <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#777', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{product.category}</p>

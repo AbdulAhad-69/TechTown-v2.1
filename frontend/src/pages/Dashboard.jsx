@@ -183,7 +183,7 @@ const Dashboard = () => {
 
     // --- LOW STOCK ALERT LOGIC ---
     const LOW_STOCK_THRESHOLD = 5;
-    const lowStockItems = products.filter(product => product.stock < LOW_STOCK_THRESHOLD);
+    const lowStockItems = products.filter(product => product.stock <= LOW_STOCK_THRESHOLD);
     const lowStockCount = lowStockItems.length;
 
     // Automated Notification Alert

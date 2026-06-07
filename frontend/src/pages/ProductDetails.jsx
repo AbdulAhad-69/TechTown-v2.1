@@ -6,7 +6,7 @@ import { useCartStore } from '../store/cartStore';
 const ProductDetails = () => {
     const { id } = useParams(); // Grabs the ID from the URL
     const navigate = useNavigate();
-    
+
     const { products, fetchProducts } = useProductStore();
     const addToCart = useCartStore(state => state.addToCart);
 
@@ -27,7 +27,7 @@ const ProductDetails = () => {
     const product = products.find((p) => p._id === id);
 
     if (products.length === 0) return <h2 className="text-center mt-60 mb-80">Loading Product...</h2>;
-    
+
     if (!product) {
         return (
             <div className="text-center mt-60 mb-80">
@@ -40,10 +40,10 @@ const ProductDetails = () => {
         );
     }
 
-    const imageUrl = product.image 
-        ? (product.image.startsWith('http') || product.image.startsWith('/assets') 
-            ? product.image 
-            : `/${product.image}`) 
+    const imageUrl = product.image
+        ? (product.image.startsWith('http') || product.image.startsWith('/assets')
+            ? product.image
+            : `/${product.image}`)
         : '/assets/images/TechTown Logo1.png';
 
     return (
@@ -53,7 +53,7 @@ const ProductDetails = () => {
             </Link>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px', background: '#fff', padding: '30px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-                
+
                 {/* Left Side: Image */}
                 <div className="flex-center" style={{ background: '#f9f9f9', borderRadius: '8px', padding: '20px' }}>
                     <img src={imageUrl} alt={product.name} style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }} />
@@ -65,7 +65,7 @@ const ProductDetails = () => {
                         {product.category}
                     </span>
                     <h1 style={{ fontSize: '32px', margin: '10px 0' }}>{product.name}</h1>
-                    
+
                     <p style={{ fontSize: '28px', color: 'var(--primary-orange, #f57224)', fontWeight: 'bold', margin: '15px 0' }}>
                         ৳ {product.price.toLocaleString()}
                     </p>
@@ -73,9 +73,13 @@ const ProductDetails = () => {
                     <div style={{ margin: '20px 0', padding: '15px 0', borderTop: '1px solid #eee', borderBottom: '1px solid #eee' }}>
                         <p style={{ margin: '5px 0' }}><strong>Condition:</strong> {product.condition_type}</p>
                         <p style={{ margin: '5px 0' }}>
-                            <strong>Availability:</strong> 
-                            <span style={{ color: product.stock > 0 ? '#28a745' : '#dc3545', fontWeight: 'bold', marginLeft: '5px' }}>
-                                {product.stock > 0 ? `${product.stock} in stock` : 'Out of Stock'}
+                            <strong>Availability:</strong>
+                            <span style={{
+                                color: product.stock === 0 ? '#dc3545' : product.stock <= 5 ? '#f5a623' : '#28a745',
+                                fontWeight: 'bold',
+                                marginLeft: '5px'
+                            }}>
+                                {product.stock === 0 ? 'Out of Stock' : product.stock <= 5 ? `Low Stock: Only ${product.stock} left!` : `${product.stock} in stock`}
                             </span>
                         </p>
                     </div>
@@ -88,44 +92,44 @@ const ProductDetails = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '15px' }}>
-                        <button 
+                        <button
                             onClick={() => addToCart(product)}
                             disabled={product.stock < 1}
-                            style={{ 
-                                flex: 1, 
-                                padding: '15px', 
-                                background: product.stock > 0 ? '#343a40' : '#ccc', 
-                                color: '#fff', 
-                                border: 'none', 
-                                borderRadius: '4px', 
+                            style={{
+                                flex: 1,
+                                padding: '15px',
+                                background: product.stock > 0 ? '#343a40' : '#ccc',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
                                 cursor: product.stock > 0 ? 'pointer' : 'not-allowed',
                                 fontWeight: 'bold',
                                 fontSize: '16px',
                                 transition: 'background 0.3s'
                             }}
-                            onMouseOver={(e) => { if(product.stock > 0) e.target.style.background = '#23272b'}}
-                            onMouseOut={(e) => { if(product.stock > 0) e.target.style.background = '#343a40'}}
+                            onMouseOver={(e) => { if (product.stock > 0) e.target.style.background = '#23272b' }}
+                            onMouseOut={(e) => { if (product.stock > 0) e.target.style.background = '#343a40' }}
                         >
                             Add to Cart
                         </button>
 
-                        <button 
+                        <button
                             onClick={handleBuyNow}
                             disabled={product.stock < 1}
-                            style={{ 
-                                flex: 1, 
-                                padding: '15px', 
-                                background: product.stock > 0 ? 'var(--primary-orange, #f57224)' : '#ccc', 
-                                color: '#fff', 
-                                border: 'none', 
-                                borderRadius: '4px', 
+                            style={{
+                                flex: 1,
+                                padding: '15px',
+                                background: product.stock > 0 ? 'var(--primary-orange, #f57224)' : '#ccc',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
                                 cursor: product.stock > 0 ? 'pointer' : 'not-allowed',
                                 fontWeight: 'bold',
                                 fontSize: '16px',
                                 transition: 'background 0.3s'
                             }}
-                            onMouseOver={(e) => { if(product.stock > 0) e.target.style.background = '#e0601b'}}
-                            onMouseOut={(e) => { if(product.stock > 0) e.target.style.background = 'var(--primary-orange, #f57224)'}}
+                            onMouseOver={(e) => { if (product.stock > 0) e.target.style.background = '#e0601b' }}
+                            onMouseOut={(e) => { if (product.stock > 0) e.target.style.background = 'var(--primary-orange, #f57224)' }}
                         >
                             {product.stock > 0 ? 'Buy Now' : 'Out of Stock'}
                         </button>
