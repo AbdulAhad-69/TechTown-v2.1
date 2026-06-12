@@ -70,7 +70,7 @@ const Home = () => {
                             letterSpacing: '1px',
                             backdropFilter: 'blur(4px)'
                         }}>
-                            Bangladesh's Premier scam Tech Hub
+                            Bangladesh's Prime Scam Tech Hub
                         </div>
                         
                         <h1 style={{ fontSize: '52px', fontWeight: 'bold', color: '#ffffff', lineHeight: '1.15', marginBottom: '20px' }}>
