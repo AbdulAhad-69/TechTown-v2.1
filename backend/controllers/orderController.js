@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 // @desc    Create new order & deduct stock safely
 // @route   POST /api/orders
 // @access  Private (Logged in users)
+// Important: This endpoint verifies prices and stock against the live database to prevent manipulation from the frontend. It also uses MongoDB atomic operators to safely update stock levels, ensuring data integrity even under concurrent requests.
 const createOrder = async (req, res) => {
     try {
         const { orderItems, shipping_address, phone, payment_method } = req.body;
