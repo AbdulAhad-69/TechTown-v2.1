@@ -82,9 +82,10 @@ const Products = () => {
         'Smartphones': 1,
         'Laptops': 2,
         'Tablets': 3,
-        'Cameras': 4,
-        'Smart Watches': 5,
-        'Accessories': 6
+        'Monitors': 4,
+        'Cameras': 5,
+        'Smart Watches': 6,
+        'Accessories': 7
     };
 
     if (sortBy === 'default') {
@@ -104,7 +105,7 @@ const Products = () => {
     else if (sortBy === 'price_high') filteredProducts.sort((a, b) => b.price - a.price);
     else if (sortBy === 'newest') filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    const categories = ['All', 'Smartphones', 'Laptops', 'Tablets', 'Cameras', 'Smart Watches', 'Accessories'];
+    const categories = ['All', 'Smartphones', 'Laptops', 'Tablets', 'Monitors', 'Cameras', 'Smart Watches', 'Accessories'];
     const conditionOptions = ['New', 'Used - Like New', 'Used - Good'];
 
     const sortOptions = {

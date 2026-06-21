@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useProductStore } from '../store/productStore';
-import { FaMobileAlt, FaLaptop, FaCamera, FaStopwatch, FaHeadphones, FaArrowRight, FaShieldAlt, FaTruck } from 'react-icons/fa';
+import { FaMobileAlt, FaLaptop, FaCamera, FaStopwatch, FaHeadphones, FaArrowRight, FaShieldAlt, FaTruck, FaTabletAlt } from 'react-icons/fa';
 const Home = () => {
     const { products, fetchProducts, isLoading } = useProductStore();
 
@@ -17,6 +17,7 @@ const Home = () => {
         { name: 'Phones', icon: <FaMobileAlt size={18} />, link: '/products?category=Smartphones' },
         { name: 'Laptops', icon: <FaLaptop size={18} />, link: '/products?category=Laptops' },
         { name: 'Tablets', icon: <FaTabletAlt size={18} />, link: '/products?category=Tablets' },
+        { name: 'Monitors', icon: <FaDesktop size={18} />, link: '/products?category=Monitors' },
         { name: 'Cameras', icon: <FaCamera size={18} />, link: '/products?category=Cameras' },
         { name: 'Watches', icon: <FaStopwatch size={18} />, link: '/products?category=Smart Watches' },
         { name: 'Accessories', icon: <FaHeadphones size={18} />, link: '/products?category=Accessories' }
