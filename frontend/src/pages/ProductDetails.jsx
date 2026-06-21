@@ -56,7 +56,12 @@ const ProductDetails = () => {
 
                 {/* Left Side: Image */}
                 <div className="flex-center" style={{ background: '#f9f9f9', borderRadius: '8px', padding: '20px' }}>
-                    <img src={imageUrl} alt={product.name} style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }} />
+                    <img
+                        src={imageUrl}
+                        alt={product.name}
+                        style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }}
+                        onError={(e) => e.target.src = '/assets/images/TechTown Logo1.png'}
+                    />
                 </div>
 
                 {/* Right Side: Details */}
