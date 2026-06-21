@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit'); // Import the rate limiter
 const connectDB = require('./config/db.js');
 
 // Initialize Express
@@ -16,41 +17,65 @@ connectDB();
 // 1. Security Headers
 app.use(helmet()); 
 
-// 2. Cross-Origin Resource Sharing (Allows your React frontend to talk to this API)
+// 2. Cross-Origin Resource Sharing
 app.use(cors({
-    origin: 'http://localhost:5173', // Default Vite port for React
-    credentials: true // Crucial for allowing HTTP-only cookies (JWT) to be sent
+    origin: 'http://localhost:5173',
+    credentials: true 
 }));
 
-// 3. Body Parsers (To read JSON and URL-encoded data from requests)
+// 3. Body Parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 4. Cookie Parser (To read the JWT cookie for authentication)
+// 4. Cookie Parser
 app.use(cookieParser());
 
-// 5. Sanitize Data (Prevents NoSQL injection attacks)
+// 5. Sanitize Data (Prevents NoSQL injection)
 app.use(mongoSanitize());
 
+// --- RATE LIMITING (DDoS & Brute Force Protection) ---
+
+// Strict Login Limiter: Max 5 attempts per 15 minutes to stop brute-forcing
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, 
+    message: { message: 'Too many login attempts. Please try again after 15 minutes to prevent brute-forcing.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Strict AI Chat Limiter: Max 15 prompts per 15 minutes to save Gemini API credits
+const aiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, 
+    max: 15, 
+    message: { message: 'AI Chat limit reached (15 msgs/15 mins). Please wait to prevent API billing abuse.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Standard Global Limiter: 100 requests per 15 minutes for standard browsing
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, 
+    max: 100,
+    message: { message: 'Too many requests from this IP, please try again after 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Apply limiters to specific routes BEFORE mapping the routers
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/ai/chat', aiLimiter);
+app.use('/api/', globalLimiter); // Catch-all for other /api routes
+
 // --- ROUTES ---
-// Basic health check route to test the server
 app.get('/api/health', (req, res) => {
     res.status(200).json({ message: 'TechTown API is running securely!' });
 });
 
-// Auth routes (for registration, login, logout)
 app.use('/api/auth', require('./routes/authRoutes'));
-
-// Product routes (for CRUD operations on products)
 app.use('/api/products', require('./routes/productRoutes'));
-
-// Order routes (for creating and managing orders)
 app.use('/api/orders', require('./routes/orderRoutes'));
-
-// AI Chat route (for interacting with the AI bot)
 app.use('/api/ai', require('./routes/aiRoutes'));
-
-// Cart routes (for managing the shopping cart)
 app.use('/api/cart', require('./routes/cartRoutes'));
 
 // --- SERVER STARTUP ---
