@@ -4,8 +4,12 @@ const Product = require('../models/Product');
 // @desc    Create new order & deduct stock safely
 // @route   POST /api/orders
 // @access  Private (Logged in users)
-// Important: This endpoint verifies prices and stock against the live database to prevent manipulation from the frontend. It also uses MongoDB atomic operators to safely update stock levels, ensuring data integrity even under concurrent requests.
 const createOrder = async (req, res) => {
+    // Variables to keep track of successful deductions for rollback
+    const successfullyDeducted = [];
+    let calculatedTotal = 0;
+    const verifiedItems = [];
+
     try {
         const { orderItems, shipping_address, phone, payment_method } = req.body;
 
@@ -13,21 +17,29 @@ const createOrder = async (req, res) => {
             return res.status(400).json({ message: 'No order items' });
         }
 
-        let calculatedTotal = 0;
-        const verifiedItems = [];
-
-        // 1. Verify prices and stock against the live database
+        // 1. ATOMIC OPERATION: Verify AND Deduct Stock simultaneously
         for (let i = 0; i < orderItems.length; i++) {
             const item = orderItems[i];
-            const liveProduct = await Product.findById(item.productId);
+            
+            // $gte ensures stock is ONLY deducted if there is enough available
+            const liveProduct = await Product.findOneAndUpdate(
+                { _id: item.productId, stock: { $gte: item.quantity } },
+                { $inc: { stock: -item.quantity } },
+                { new: true } // Returns the updated document
+            );
 
+            // If findOneAndUpdate returns null, it means the item is missing OR stock is too low
             if (!liveProduct) {
-                return res.status(404).json({ message: `Product ${item.name} not found in database.` });
+                const checkProduct = await Product.findById(item.productId);
+                let errorMessage = `Product ${item.name} not found.`;
+                if (checkProduct) {
+                    errorMessage = `Insufficient stock for ${checkProduct.name}. Only ${checkProduct.stock} left.`;
+                }
+                throw new Error(errorMessage); // This forces the code to jump to the catch block
             }
 
-            if (liveProduct.stock < item.quantity) {
-                return res.status(400).json({ message: `Insufficient stock for ${liveProduct.name}. Only ${liveProduct.stock} left.` });
-            }
+            // Keep track of what we changed in case we need to roll back later
+            successfullyDeducted.push(item);
 
             // Calculate total using REAL database price
             calculatedTotal += liveProduct.price * item.quantity;
@@ -41,7 +53,7 @@ const createOrder = async (req, res) => {
             });
         }
 
-        // Add standard delivery fee (e.g., 120 BDT)
+        // Add standard delivery fee
         calculatedTotal += 120;
 
         // 2. Create the order
@@ -55,18 +67,17 @@ const createOrder = async (req, res) => {
         });
 
         const createdOrder = await order.save();
+        res.status(201).json(createdOrder);
 
-        // 3. Deduct stock mathematically using MongoDB atomic operators
-        for (const item of verifiedItems) {
+    } catch (error) {
+        // 3. ROLLBACK SYSTEM: If ANY item fails, restore the stock for items that succeeded
+        for (const deductedItem of successfullyDeducted) {
             await Product.updateOne(
-                { _id: item.productId },
-                { $inc: { stock: -item.quantity } } // Subtracts the quantity
+                { _id: deductedItem.productId },
+                { $inc: { stock: deductedItem.quantity } } // Give the stock back
             );
         }
-
-        res.status(201).json(createdOrder);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(400).json({ message: error.message });
     }
 };
 
