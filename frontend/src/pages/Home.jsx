@@ -112,7 +112,7 @@ const Home = () => {
                                     <FaShieldAlt color="var(--primary-orange, #f57224)" size={18} /> Verified Sellers
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#e2e8f0', fontSize: '14px', fontWeight: 'bold' }}>
-                                    <FaTruck color="var(--primary-orange, #f57224)" size={18} /> Fast Delivery
+                                    <FaTruck color="var(--primary-orange, #f57224)" size={18} /> Late Delivery
                                 </div>
                             </div>
                         </div>
