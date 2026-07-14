@@ -118,20 +118,6 @@ const Checkout = () => {
                     </div>
 
                     <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Payment Method</label>
-                        <select
-                            name="payment_method"
-                            value={formData.payment_method}
-                            onChange={handleInputChange}
-                            style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
-                        >
-                            <option value="Cash on Delivery">Cash on Delivery</option>
-                            <option value="bKash">bKash (Coming Soon)</option>
-                            <option value="Card Payment">Card Payment</option>
-                        </select>
-                    </div>
-
-                    <div>
                         <label
                             style={{
                                 display: 'block',
