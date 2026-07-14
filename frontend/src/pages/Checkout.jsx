@@ -14,7 +14,8 @@ const Checkout = () => {
     const [formData, setFormData] = useState({
         shipping_address: '',
         phone: user?.phone || '', // Auto-fill from profile if available
-        payment_method: 'Cash on Delivery' // Standard default for Bangladesh
+        payment_method: 'Cash on Delivery', // Standard default for Bangladesh
+        bank: ''
     });
 
     // SECURITY: Must be logged in and have items in cart
@@ -28,7 +29,15 @@ const Checkout = () => {
     }, [user, cart, navigate]);
 
     const handleInputChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+            ...(name === "payment_method" && value !== "Card Payment"
+                ? { bank: "" }
+                : {})
+        }));
     };
 
     const placeOrder = async (e) => {
@@ -38,7 +47,7 @@ const Checkout = () => {
         try {
             // Format the cart data to match what the backend expects
             const orderItems = cart.map(item => ({
-                productId: item._id,
+                productId: item.productId,
                 name: item.name,
                 price: item.price, // We send price, but backend will verify it securely!
                 quantity: item.quantity,
@@ -49,7 +58,8 @@ const Checkout = () => {
                 orderItems,
                 shipping_address: formData.shipping_address,
                 phone: formData.phone,
-                payment_method: formData.payment_method
+                payment_method: formData.payment_method,
+                bank: formData.bank
             };
 
             const res = await axios.post('/api/orders', orderPayload);
@@ -117,8 +127,69 @@ const Checkout = () => {
                         >
                             <option value="Cash on Delivery">Cash on Delivery</option>
                             <option value="bKash">bKash (Coming Soon)</option>
+                            <option value="Card Payment">Card Payment</option>
                         </select>
                     </div>
+
+                    <div>
+                        <label
+                            style={{
+                                display: 'block',
+                                marginBottom: '5px',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            Payment Method
+                        </label>
+
+                        <select
+                            name="payment_method"
+                            value={formData.payment_method}
+                            onChange={handleInputChange}
+                            style={{
+                                width: '100%',
+                                padding: '10px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px'
+                            }}
+                        >
+                            <option value="Cash on Delivery">Cash on Delivery</option>
+                            <option value="bKash">bKash (Coming Soon)</option>
+                            <option value="Card Payment">Card Payment</option>
+                        </select>
+                    </div>
+
+                    {formData.payment_method === "Card Payment" && (
+                        <div>
+                            <label
+                                style={{
+                                    display: 'block',
+                                    marginBottom: '5px',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                Select Bank
+                            </label>
+
+                            <select
+                                name="bank"
+                                value={formData.bank}
+                                onChange={handleInputChange}
+                                required
+                                style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px'
+                                }}
+                            >
+                                <option value="">-- Select Bank --</option>
+                                <option value="BRAC Bank">BRAC Bank</option>
+                                <option value="IFIC Bank">IFIC Bank</option>
+                                <option value="Islami Bank">Islami Bank</option>
+                            </select>
+                        </div>
+                    )}
 
                     <button
                         type="submit"
