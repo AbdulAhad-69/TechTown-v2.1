@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import axios from 'axios';
 
+// Set base URL so production hits the Render backend, dev uses the Vite proxy
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+
 // Configure Axios to always send our HTTP-only cookies securely
 axios.defaults.withCredentials = true;
 
