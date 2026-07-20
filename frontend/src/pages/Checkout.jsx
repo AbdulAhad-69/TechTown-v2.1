@@ -13,12 +13,11 @@ const Checkout = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         shipping_address: '',
-        phone: user?.phone || '', // Auto-fill from profile if available
-        payment_method: 'Cash on Delivery', // Standard default for Bangladesh
+        phone: user?.phone || '', 
+        payment_method: 'Cash on Delivery', 
         bank: ''
     });
 
-    // SECURITY: Must be logged in and have items in cart
     useEffect(() => {
         if (!user) {
             toast.error("Please log in to proceed to checkout");
@@ -30,26 +29,39 @@ const Checkout = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-
         setFormData((prev) => ({
             ...prev,
             [name]: value,
-            ...(name === "payment_method" && value !== "Card Payment"
-                ? { bank: "" }
-                : {})
+            ...(name === "payment_method" && value !== "Card Payment" ? { bank: "" } : {})
         }));
+    };
+
+    const handlePaymentSelect = (method) => {
+        setFormData(prev => ({
+            ...prev,
+            payment_method: method,
+            ...(method !== "Card Payment" ? { bank: "" } : {})
+        }));
+    };
+
+    const handleBankSelect = (bankName) => {
+        setFormData(prev => ({ ...prev, bank: bankName }));
     };
 
     const placeOrder = async (e) => {
         e.preventDefault();
+        
+        if (formData.payment_method === 'Card Payment' && !formData.bank) {
+            return toast.warning("Please select a bank for your card payment.");
+        }
+
         setIsSubmitting(true);
 
         try {
-            // Format the cart data to match what the backend expects
             const orderItems = cart.map(item => ({
                 productId: item.productId,
                 name: item.name,
-                price: item.price, // We send price, but backend will verify it securely!
+                price: item.price, 
                 quantity: item.quantity,
                 image: item.image
             }));
@@ -65,8 +77,8 @@ const Checkout = () => {
             const res = await axios.post('/api/orders', orderPayload);
 
             toast.success(`Order placed successfully! Order ID: ${res.data._id.substring(0, 8)}`);
-            clearCart(); // Empty the Zustand cart state
-            navigate('/dashboard'); // Send them to dashboard to view their orders
+            clearCart(); 
+            navigate('/dashboard'); 
 
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to place order");
@@ -75,118 +87,318 @@ const Checkout = () => {
         }
     };
 
-    // Prevent rendering if useEffect is about to redirect
     if (!user || cart.length === 0) return null;
 
+    const deliveryFee = 120;
+    const cartTotal = getCartTotal();
+    const finalTotal = cartTotal + deliveryFee;
+
     return (
-        <section className="mt-60 mb-80 flex-center" style={{ padding: '0 20px' }}>
-            <div style={{ maxWidth: '600px', width: '100%', background: '#fff', padding: '30px', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-                <h2 className="text-center" style={{ marginBottom: '30px' }}>Checkout</h2>
+        <>
+            <style>{`
+                .checkout-wrapper {
+                    max-width: 1100px;
+                    margin: 40px auto 80px;
+                    padding: 0 20px;
+                }
+                .checkout-grid {
+                    display: grid;
+                    grid-template-columns: 1.5fr 1fr;
+                    gap: 30px;
+                }
+                .checkout-section {
+                    background: #fff;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 30px rgba(0,0,0,0.04);
+                }
+                .section-title {
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #333;
+                    margin-bottom: 20px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #f1f5f9;
+                }
+                .form-group {
+                    margin-bottom: 20px;
+                }
+                .form-label {
+                    display: block;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #475569;
+                    margin-bottom: 8px;
+                }
+                .custom-input {
+                    width: 100%;
+                    padding: 12px 15px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    transition: all 0.3s;
+                    background: #f8fafc;
+                }
+                .custom-input:focus {
+                    background: #fff;
+                    border-color: var(--primary-orange, #f57224);
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(245, 114, 36, 0.1);
+                }
+                
+                /* Payment Cards UI */
+                .payment-options {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                    gap: 15px;
+                    margin-bottom: 20px;
+                }
+                .pay-card {
+                    border: 2px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 15px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    background: #fff;
+                    text-align: center;
+                    gap: 10px;
+                }
+                .pay-card img {
+                    height: 35px;
+                    object-fit: contain;
+                }
+                .pay-card span {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #64748b;
+                }
+                .pay-card:hover {
+                    border-color: #cbd5e1;
+                    transform: translateY(-2px);
+                }
+                .pay-card.active {
+                    border-color: var(--primary-orange, #f57224);
+                    background: #fffaf7;
+                    box-shadow: 0 4px 12px rgba(245, 114, 36, 0.1);
+                }
+                .pay-card.active span {
+                    color: var(--primary-orange, #f57224);
+                }
 
-                <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '4px', marginBottom: '20px' }}>
-                    <h4 style={{ marginBottom: '10px' }}>Order Summary</h4>
-                    <p>Total Items: {cart.reduce((acc, item) => acc + item.quantity, 0)}</p>
-                    <p style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--primary-orange, #f57224)' }}>
-                        Total Amount: ৳ {(getCartTotal() + 120).toLocaleString()} <span style={{ fontSize: '12px', color: '#777' }}>(incl. ৳120 Delivery)</span>
-                    </p>
-                </div>
+                /* Receipt Sidebar */
+                .receipt-box {
+                    background: #f8fafc;
+                    border-radius: 12px;
+                    padding: 25px;
+                    position: sticky;
+                    top: 100px;
+                }
+                .receipt-item {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 15px;
+                    font-size: 14px;
+                    color: #475569;
+                }
+                .receipt-total {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 2px dashed #cbd5e1;
+                    font-size: 18px;
+                    font-weight: 800;
+                    color: #0f172a;
+                }
+                .checkout-btn {
+                    width: 100%;
+                    padding: 16px;
+                    background: var(--primary-orange, #f57224);
+                    color: #fff;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: 0.3s;
+                    margin-top: 25px;
+                    box-shadow: 0 4px 15px rgba(245, 114, 36, 0.3);
+                }
+                .checkout-btn:hover {
+                    background: #e0601b;
+                    transform: translateY(-2px);
+                }
+                .checkout-btn:disabled {
+                    background: #cbd5e1;
+                    cursor: not-allowed;
+                    transform: none;
+                    box-shadow: none;
+                }
 
-                <form onSubmit={placeOrder} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Shipping Address</label>
-                        <textarea
-                            name="shipping_address"
-                            value={formData.shipping_address}
-                            onChange={handleInputChange}
-                            required
-                            rows="3"
-                            placeholder="House No, Road No, Area, City"
-                            style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
-                        />
+                @media (max-width: 768px) {
+                    .checkout-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+            `}</style>
+
+            <section className="checkout-wrapper">
+                <div className="checkout-grid">
+                    
+                    {/* LEFT COLUMN: Form & Payment */}
+                    <div className="checkout-left">
+                        <form id="checkout-form" onSubmit={placeOrder}>
+                            
+                            {/* Shipping Details */}
+                            <div className="checkout-section" style={{ marginBottom: '30px' }}>
+                                <h3 className="section-title">1. Delivery Information</h3>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Contact Phone</label>
+                                    <input
+                                        type="text"
+                                        name="phone"
+                                        className="custom-input"
+                                        value={formData.phone}
+                                        onChange={handleInputChange}
+                                        placeholder="01XXXXXXXXX"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                    <label className="form-label">Shipping Address</label>
+                                    <textarea
+                                        name="shipping_address"
+                                        className="custom-input"
+                                        value={formData.shipping_address}
+                                        onChange={handleInputChange}
+                                        required
+                                        rows="3"
+                                        placeholder="House No, Road No, Area, City"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Payment Selection */}
+                            <div className="checkout-section">
+                                <h3 className="section-title">2. Payment Method</h3>
+                                
+                                <div className="payment-options">
+                                    <div 
+                                        className={`pay-card ${formData.payment_method === 'Cash on Delivery' ? 'active' : ''}`}
+                                        onClick={() => handlePaymentSelect('Cash on Delivery')}
+                                    >
+                                        <img src="/assets/images/cod.png" alt="COD" />
+                                        <span>Cash on Delivery</span>
+                                    </div>
+                                    
+                                    <div 
+                                        className={`pay-card ${formData.payment_method === 'bKash' ? 'active' : ''}`}
+                                        onClick={() => handlePaymentSelect('bKash')}
+                                    >
+                                        <img src="/assets/images/bKash.png" alt="bKash" />
+                                        <span>bKash</span>
+                                    </div>
+
+                                    <div 
+                                        className={`pay-card ${formData.payment_method === 'Card Payment' ? 'active' : ''}`}
+                                        onClick={() => handlePaymentSelect('Card Payment')}
+                                    >
+                                        <img src="/assets/images/bankcard.jpg" alt="Card" style={{ borderRadius: '4px' }} />
+                                        <span>Bank / Card</span>
+                                    </div>
+                                </div>
+
+                                {/* Conditional Bank Selection (Shows only if Card Payment is selected) */}
+                                {formData.payment_method === "Card Payment" && (
+                                    <div style={{ marginTop: '25px', padding: '20px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                        <label className="form-label">Select Your Bank</label>
+                                        <div className="payment-options" style={{ marginBottom: 0 }}>
+                                            
+                                            <div 
+                                                className={`pay-card ${formData.bank === 'BRAC Bank' ? 'active' : ''}`}
+                                                onClick={() => handleBankSelect('BRAC Bank')}
+                                            >
+                                                <img src="/assets/images/brac.jpg" alt="BRAC Bank" style={{ borderRadius: '4px' }} />
+                                            </div>
+
+                                            <div 
+                                                className={`pay-card ${formData.bank === 'IFIC Bank' ? 'active' : ''}`}
+                                                onClick={() => handleBankSelect('IFIC Bank')}
+                                            >
+                                                <img src="/assets/images/ific.png" alt="IFIC Bank" style={{ borderRadius: '4px' }} />
+                                            </div>
+
+                                            <div 
+                                                className={`pay-card ${formData.bank === 'Islami Bank' ? 'active' : ''}`}
+                                                onClick={() => handleBankSelect('Islami Bank')}
+                                            >
+                                                <img src="/assets/images/ibbl.png" alt="Islami Bank" style={{ borderRadius: '4px' }} />
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </form>
                     </div>
 
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Contact Phone</label>
-                        <input
-                            type="text"
-                            name="phone"
-                            value={formData.phone}
-                            onChange={handleInputChange}
-                            required
-                            style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
-                        />
-                    </div>
+                    {/* RIGHT COLUMN: Order Summary Receipt */}
+                    <div className="checkout-right">
+                        <div className="receipt-box">
+                            <h3 className="section-title">Order Summary</h3>
+                            
+                            <div style={{ marginBottom: '20px', maxHeight: '200px', overflowY: 'auto' }}>
+                                {cart.map((item, index) => (
+                                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                                        <img src={item.image} alt={item.name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: '#fff', borderRadius: '4px', padding: '2px' }} />
+                                        <div style={{ flex: 1, fontSize: '13px', color: '#333', lineHeight: '1.4' }}>
+                                            <div style={{ fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{item.name}</div>
+                                            <div style={{ color: '#64748b' }}>Qty: {item.quantity}</div>
+                                        </div>
+                                        <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
+                                            ৳{(item.price * item.quantity).toLocaleString()}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-                    <div>
-                        <label
-                            style={{
-                                display: 'block',
-                                marginBottom: '5px',
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            Payment Method
-                        </label>
+                            <div className="receipt-item">
+                                <span>Subtotal</span>
+                                <span style={{ fontWeight: 'bold', color: '#333' }}>৳{cartTotal.toLocaleString()}</span>
+                            </div>
+                            <div className="receipt-item">
+                                <span>Delivery Fee</span>
+                                <span style={{ fontWeight: 'bold', color: '#333' }}>৳{deliveryFee.toLocaleString()}</span>
+                            </div>
+                            
+                            <div className="receipt-total">
+                                <span>Total Payable</span>
+                                <span style={{ color: 'var(--primary-orange, #f57224)' }}>৳{finalTotal.toLocaleString()}</span>
+                            </div>
 
-                        <select
-                            name="payment_method"
-                            value={formData.payment_method}
-                            onChange={handleInputChange}
-                            style={{
-                                width: '100%',
-                                padding: '10px',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px'
-                            }}
-                        >
-                            <option value="Cash on Delivery">Cash on Delivery</option>
-                            <option value="bKash">bKash (Coming Soon)</option>
-                            <option value="Card Payment">Card Payment</option>
-                        </select>
-                    </div>
-
-                    {formData.payment_method === "Card Payment" && (
-                        <div>
-                            <label
-                                style={{
-                                    display: 'block',
-                                    marginBottom: '5px',
-                                    fontWeight: 'bold'
-                                }}
+                            <button 
+                                form="checkout-form"
+                                type="submit" 
+                                className="checkout-btn"
+                                disabled={isSubmitting}
                             >
-                                Select Bank
-                            </label>
-
-                            <select
-                                name="bank"
-                                value={formData.bank}
-                                onChange={handleInputChange}
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: '10px',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '4px'
-                                }}
-                            >
-                                <option value="">-- Select Bank --</option>
-                                <option value="BRAC Bank">BRAC Bank</option>
-                                <option value="IFIC Bank">IFIC Bank</option>
-                                <option value="Islami Bank">Islami Bank</option>
-                            </select>
+                                {isSubmitting ? 'Processing Securely...' : 'Place Order Now'}
+                            </button>
+                            <p style={{ textAlign: 'center', fontSize: '12px', color: '#94a3b8', marginTop: '15px' }}>
+                                By placing this order, you agree to TechTown's Terms & Conditions.
+                            </p>
                         </div>
-                    )}
+                    </div>
 
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        style={{ width: '100%', padding: '15px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', marginTop: '10px' }}
-                    >
-                        {isSubmitting ? 'Processing Order...' : 'Confirm Order'}
-                    </button>
-                </form>
-            </div>
-        </section>
+                </div>
+            </section>
+        </>
     );
 };
 
